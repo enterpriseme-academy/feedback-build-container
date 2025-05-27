@@ -6,7 +6,7 @@ data "archive_file" "lambda_zip" {
 }
 
 # Update Lambda function resource to use the zip file
-resource "aws_lambda_function" "copy_scanned_image" {
+resource "aws_lambda_function" "validate_scanned_image" {
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   function_name    = "validate-scanned-image"
@@ -21,13 +21,12 @@ resource "aws_lambda_function" "copy_scanned_image" {
       TARGET_REPOSITORY      = aws_ecr_repository.feedback_app_scanned.name
       SOURCE_REPOSITORY      = aws_ecr_repository.feedback_app.name
       CODEBUILD_PROJECT_NAME = aws_codebuild_project.copy_scanned_image.name
-      AWS_DEFAULT_REGION     = data.aws_region.current.name
     }
   }
 }
 
 resource "aws_iam_role" "lambda_role" {
-  name = "copy-scanned-image-role"
+  name = "validate-scanned-image-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -44,7 +43,7 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 resource "aws_iam_role_policy" "lambda_policy" {
-  name = "copy-scanned-image-policy"
+  name = "validate-scanned-image-policy"
   role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
@@ -101,13 +100,13 @@ resource "aws_cloudwatch_event_rule" "scan_complete" {
 resource "aws_cloudwatch_event_target" "lambda" {
   rule      = aws_cloudwatch_event_rule.scan_complete.name
   target_id = "SendToLambda"
-  arn       = aws_lambda_function.copy_scanned_image.arn
+  arn       = aws_lambda_function.validate_scanned_image.arn
 }
 
 resource "aws_lambda_permission" "allow_eventbridge" {
   statement_id  = "AllowEventBridgeInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.copy_scanned_image.function_name
+  function_name = aws_lambda_function.validate_scanned_image.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.scan_complete.arn
 }
