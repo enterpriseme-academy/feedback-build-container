@@ -24,6 +24,11 @@ resource "aws_lambda_function" "validate_scanned_image" {
     }
   }
 }
+# Attach IAM Policy AWSLambdaBasicExecutionRole  to the Lambda function
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
 
 resource "aws_iam_role" "lambda_role" {
   name = "validate-scanned-image-role"
@@ -40,6 +45,12 @@ resource "aws_iam_role" "lambda_role" {
       }
     ]
   })
+}
+
+# CloudWatch Log group for Lambda function
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name              = "/aws/lambda/${aws_lambda_function.validate_scanned_image.function_name}"
+  retention_in_days = 7
 }
 
 resource "aws_iam_role_policy" "lambda_policy" {
@@ -75,6 +86,15 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect = "Allow"
         Action = [
           "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "codebuild:StartBuild",
+          "codebuild:BatchGetBuilds",
+          "codebuild:BatchGetProjects"
         ]
         Resource = "*"
       }
